@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17324d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="60 jours">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Calendrier 60 jours</title>
+<style>
+:root{--navy:#17324d;--gold:#d8a33a;--bg:#f4f6f8;--muted:#697586;--green:#198754;--orange:#e58b20;--red:#c63d3d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#17202a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.app{max-width:900px;margin:auto;padding:18px 16px 40px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+h1{margin:0;color:var(--navy);font-size:27px}.subtitle{color:var(--muted);margin:4px 0 0}.logo{width:50px;height:50px;border-radius:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 7px 25px #17324d12}.wide{grid-column:1/-1}
+.kicker{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}.big{font-size:32px;font-weight:800;color:var(--navy);margin:7px 0}.gold{color:#9a6c0e}.label{font-weight:700;display:block;margin:0 0 8px}input{width:100%;padding:13px 14px;border:1px solid #d5dbe2;border-radius:12px;font-size:18px;background:white}
+.result{font-size:29px;font-weight:800;color:var(--navy);margin-top:14px}.note{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.45}
+.status{display:inline-block;margin-top:10px;padding:7px 11px;border-radius:999px;font-size:13px;font-weight:700}.green{background:#e8f5ee;color:var(--green)}.orange{background:#fff1df;color:#a65f00}.red{background:#fde9e9;color:var(--red)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.month{font-size:20px;font-weight:800;color:var(--navy)}button{border:0;background:var(--navy);color:white;border-radius:10px;padding:9px 13px;font-weight:700;cursor:pointer}.secondary{background:#eef2f6;color:var(--navy)}
+.week,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.week div{font-size:12px;text-align:center;color:var(--muted);font-weight:700;padding:5px}.day{min-height:48px;border:0;background:#f7f8fa;color:#1f2937;border-radius:9px;font-size:14px}.day:hover{outline:2px solid #d8a33a}.empty{background:transparent}.today{outline:2px solid var(--gold)}.selected{background:var(--navy);color:white}.limit{font-size:10px;display:block;color:var(--muted);margin-top:2px}.selected .limit{color:#e8edf3}
+.footer{text-align:center;color:var(--muted);font-size:12px;margin-top:20px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}.app{padding:15px 12px 30px}.big{font-size:29px}.day{min-height:52px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top"><div><h1>Calendrier 60 jours</h1><p class="subtitle">Location courte durée · annulation gratuite</p></div><img class="logo" src="icons/icon-192.png"></header>
+
+<section class="grid">
+<div class="card"><div class="kicker">Aujourd'hui</div><div id="today" class="big">—</div><div class="note">Date de référence</div></div>
+<div class="card"><div class="kicker">Dans 60 jours</div><div id="plus60" class="big gold">—</div><div class="note">Date correspondant exactement à +60 jours</div></div>
+
+<div class="card wide">
+<div class="kicker">Calcul d'une réservation</div>
+<label class="label" for="arrival">Date d'arrivée du client</label>
+<input id="arrival" type="date">
+<div class="result" id="limit">—</div>
+<div id="status"></div>
+<div class="note">Le client peut annuler sans frais jusqu'à cette date incluse.</div>
+</div>
+
+<div class="card wide">
+<div class="cal-head"><button class="secondary" id="prev">‹</button><div class="month" id="month">—</div><button class="secondary" id="next">›</button></div>
+<div class="week"><div>Lu</div><div>Ma</div><div>Me</div><div>Je</div><div>Ve</div><div>Sa</div><div>Di</div></div>
+<div class="days" id="days"></div>
+<div class="note">Clique sur une date d'arrivée pour calculer automatiquement la limite d'annulation.</div>
+</div>
+</section>
+<div class="footer">Fonctionne sur Windows et iPhone · peut être installé comme application.</div>
+</div>
+<script>
+const fmt=d=>new Intl.DateTimeFormat('fr-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d);
+const fmtShort=d=>new Intl.DateTimeFormat('fr-BE',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+const iso=d=>{let x=new Date(d);x.setHours(12,0,0,0);return x.toISOString().slice(0,10)};
+const parse=v=>{let [y,m,dd]=v.split('-').map(Number);return new Date(y,m-1,dd,12)};
+const add=(d,n)=>{let x=new Date(d);x.setDate(x.getDate()+n);return x};
+const today=new Date();today.setHours(12,0,0,0);
+document.getElementById('today').textContent=fmt(today);
+document.getElementById('plus60').textContent=fmt(add(today,60));
+
+const arrival=document.getElementById('arrival'),limit=document.getElementById('limit'),status=document.getElementById('status');
+function calculate(){
+ if(!arrival.value){limit.textContent='—';status.innerHTML='';return}
+ const d=parse(arrival.value), l=add(d,-60);
+ limit.textContent=fmt(l);
+ const diff=Math.ceil((l-today)/86400000);
+ let cls=diff<0?'red':diff<=30?'red':diff<=60?'orange':'green';
+ let txt=diff<0?'La période d’annulation gratuite est déjà dépassée.':diff===0?'La limite est aujourd’hui.':`Il reste ${diff} jour${diff>1?'s':''} avant la limite.`;
+ status.innerHTML=`<span class="status ${cls}">${txt}</span>`;
+ render();
+}
+arrival.addEventListener('input',calculate);
+
+let view=new Date(today.getFullYear(),today.getMonth(),1);
+function render(){
+ const y=view.getFullYear(),m=view.getMonth();
+ document.getElementById('month').textContent=new Intl.DateTimeFormat('fr-BE',{month:'long',year:'numeric'}).format(view);
+ const first=new Date(y,m,1), offset=(first.getDay()+6)%7, days=new Date(y,m+1,0).getDate();
+ let h='';
+ for(let i=0;i<offset;i++)h+='<div class="day empty"></div>';
+ for(let n=1;n<=days;n++){
+  const d=new Date(y,m,n,12), v=iso(d);
+  const isToday=v===iso(today), sel=v===arrival.value;
+  h+=`<button class="day ${isToday?'today ':''}${sel?'selected':''}" data-date="${v}">${n}</button>`;
+ }
+ document.getElementById('days').innerHTML=h;
+ document.querySelectorAll('[data-date]').forEach(b=>b.onclick=()=>{arrival.value=b.dataset.date;calculate();});
+}
+document.getElementById('prev').onclick=()=>{view.setMonth(view.getMonth()-1);render()};
+document.getElementById('next').onclick=()=>{view.setMonth(view.getMonth()+1);render()};
+render();
+if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
+</script>
+</body></html>
